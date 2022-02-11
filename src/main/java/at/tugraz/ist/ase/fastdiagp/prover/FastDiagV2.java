@@ -8,30 +8,11 @@ import java.util.*;
 import static at.tugraz.ist.ase.fastdiagp.prover.Utils.printConsistencyCheck;
 
 /**
- * Implementation of an MSS-based FastDiag algorithm.
- * MSS - Maximal Satisfiable Set
- *
- * // MSS-based FastDiag Algorithm
- * //--------------------
- * // B: correctConstraints (background knowledge)
- * // C: possiblyFaultyConstraints
- * //--------------------
- * // Func FastDiag(C, B) : Δ
- * // if isEmpty(C) or consistent(B U C) return Φ
- * // else return C \ FD(C, B, Φ)
- *
- * // Func FD(Δ, C = {c1..cn}, B) : MSS
- * // if Δ != Φ and consistent(B U C) return C;
- * // if singleton(C) return Φ;
- * // k = n/2;
- * // C1 = {c1..ck}; C2 = {ck+1..cn};
- * // Δ2 = FD(C2, C1, B);
- * // Δ1 = FD(C1 - Δ2, C2, B U Δ2);
- * // return Δ1 ∪ Δ2;
+ * Implementation of the FastDiag algorithm.
  *
  * @author Viet-Man Le (vietman.le@ist.tugraz.at)
  */
-public class FastDiagV3 {
+public class FastDiagV2 {
 
     static int incrementCounter;
 
@@ -44,22 +25,22 @@ public class FastDiagV3 {
 //        this.checker = checker;
 //    }
 
-    public FastDiagV3() {
+    public FastDiagV2() {
         CCList = new ArrayList<>();
     }
 
     public void printConsistencyChecks(Set<String> C) {
         incrementCounter = 1;
-        System.out.println("Consistency checks needed by FastDiag: ");
+        System.out.println("Consistency checks needed by FastDiag2: ");
 //        printConsistencyCheck(incrementCounter++, C);
 //        CCList.add(C);
 
         List<Set<String>> Δ = new ArrayList<>();
-        List<Set<String>> B = new ArrayList<>();
+        List<Set<String>> AC = new ArrayList<>();
         Δ.add(Collections.emptySet());
-        B.add(Collections.emptySet());
+        AC.add(C);
 
-        fd(Δ, C, B);
+        fd(Δ, C, AC);
     }
 
     /**
@@ -71,7 +52,7 @@ public class FastDiagV3 {
      * // else return C \ FD(C, B, Φ)
      *
      * @param C a consideration set of constraints. Need to inverse the order of the possibly faulty constraint set.
-     * @param B a background knowledge
+     * @param AC a background knowledge
      * @return a diagnosis or an empty set
      */
 //    public Set<String> findDiagnosis(Set<String> C, Set<String> B) {
@@ -92,39 +73,23 @@ public class FastDiagV3 {
 //        }
 //    }
 
-    /**
-     * The implementation of MSS-based FastDiag algorithm.
-     * The algorithm determines a maximal satisfiable subset MSS (Γ) of C U B.
-     *
-     * // Func FD(Δ, C = {c1..cn}, B) : MSS
-     * // if Δ != Φ and consistent(B U C) return C;
-     * // if singleton(C) return Φ;
-     * // k = n/2;
-     * // C1 = {c1..ck}; C2 = {ck+1..cn};
-     * // Δ2 = FD(C2, C1, B);
-     * // Δ1 = FD(C1 - Δ2, C2, B U Δ2);
-     * // return Δ1 ∪ Δ2;
-     *
-     * @param Δ check to skip redundant consistency checks
-     * @param C a consideration set of constraints
-     * @param B a background knowledge
-     * @return a maximal satisfiable subset MSS of C U B.
-     */
-    private List<Set<String>> fd(List<Set<String>> Δ, Set<String> C, List<Set<String>> B) {
+    private List<Set<String>> fd(List<Set<String>> Δ, Set<String> C, List<Set<String>> AC) {
         List<Set<String>> D = new ArrayList<>();
+
+//        System.out.println("Δ: " + Δ.size() + " AC: " + AC.size());
 
         // if Δ != Φ and consistent(B U C) return C;
 //        if( !Δ.get(0).isEmpty() ) {
         if (!Δ.isEmpty() ) {
-            for (int i = 0; i < B.size(); i++) {
+            for (int i = 0; i < AC.size(); i++) {
 //            for (Set<String> b : B) {
                 if( !Δ.get(i).isEmpty() ) {
-                    Set<String> b = B.get(i);
-                    Set<String> BwithC = SetUtils.union(b, C);
+                    Set<String> ac = AC.get(i);
+//                    Set<String> BwithC = SetUtils.union(ac, C);
 
                     // print BwithC
-                    printConsistencyCheck(incrementCounter++, BwithC);
-                    CCList.add(BwithC);
+                    printConsistencyCheck(incrementCounter++, ac);
+                    CCList.add(ac);
 
 //                if (checker.isConsistent(BwithC)) {
 //                    return C;
@@ -149,35 +114,40 @@ public class FastDiagV3 {
             List<String> firstSubList = new ArrayList<>(C).subList(0, k);
             List<String> secondSubList = new ArrayList<>(C).subList(k, n);
             Set<String> C1 = new LinkedHashSet<>(firstSubList);
-//            Set<String> C2 = new LinkedHashSet<>(secondSubList);
+            Set<String> C2 = new LinkedHashSet<>(secondSubList);
 
-            List<Set<String>> C2 = new ArrayList<>();
-            for (int i = 0; i < Δ.size(); i++) {
-                C2.add(new LinkedHashSet<>(secondSubList));
+            List<Set<String>> newAC = new ArrayList<>();
+            for (Set<String> stringSet1 : AC) {
+                newAC.add(SetUtils.difference(stringSet1, C2));
+            }
+
+            List<Set<String>> newC2 = new ArrayList<>();
+            for (int i = 0; i < AC.size(); i++) {
+                newC2.add(new LinkedHashSet<>(secondSubList));
             }
 
             // Δ2 = FD(C2, C1, B);
-            List<Set<String>> Δ2 = fd(C2, C1, B);
+            List<Set<String>> Δ2 = fd(newC2, C1, newAC);
 
             // Δ1 = FD(C1 - Δ2, C2, B U Δ2);
-            List<Set<String>> newB = new ArrayList<>();
-            for (Set<String> stringSet1 : B) {
+            newAC = new ArrayList<>();
+            for (Set<String> stringSet1 : AC) {
                 for (Set<String> stringSet2 : Δ2) {
-                    newB.add(SetUtils.union(stringSet1, stringSet2));
+                    newAC.add(SetUtils.difference(stringSet1, stringSet2));
                 }
             }
 
             List<Set<String>> newΔ2 = new ArrayList<>();
-            for (int i = 0; i < B.size(); i++) {
+            for (int i = 0; i < AC.size(); i++) {
                 for (Set<String> stringSet1 : Δ2) {
-                    newΔ2.add(SetUtils.difference(C1, stringSet1));
+                    newΔ2.add(stringSet1);
                 }
             }
 
 //            Set<String> BwithΔ2 = SetUtils.union(stringSet, B);
 //            Set<String> C1withoutΔ2 = SetUtils.difference(C1, stringSet);
 //            List<Set<String>> Δ1 = fd(Δ2, C2.get(0), newB);
-            List<Set<String>> Δ1 = fd(newΔ2, C2.get(0), newB);
+            List<Set<String>> Δ1 = fd(newΔ2, C2, newAC);
 
             for (Set<String> stringSet1 : Δ1) {
                 for (Set<String> stringSet2 : Δ2) {
